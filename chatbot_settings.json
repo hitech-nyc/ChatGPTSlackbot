@@ -1,0 +1,34 @@
+{
+    "debug":{
+        "bot_id":"U064SDYRP37",
+        "logging_path":"chatbot_messagesdebug.log",
+        "token":"",
+        "users": {
+            "U02HX5HQBEU": {
+                "name": "User1",
+                "active": true
+            },
+            "U0674228PUZ": {
+                "name": "User2",
+                "active": true
+            },
+            "U066TS32HPW": {
+                "name": "User3",
+                "active": false
+            }
+        }
+    },
+    
+    "prod":{
+        "bot_id":"U06A792TUFR",
+        "logging_path":"chatbot_messages.log",
+        "token":"",
+        "users": {
+            "U06A792TUFR": {
+                "name": "ChatGPT",
+                "active": true
+            }
+            }
+        }
+    }
+}
