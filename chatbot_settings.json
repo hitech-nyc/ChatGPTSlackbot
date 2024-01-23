@@ -1,0 +1,101 @@
+{
+    "debug":{
+        "bot_id":"U064SDYRP37",
+        "logging_path":"chatbot_messagesdebug.log",
+        "token":"",
+        "users": {
+            "U02HX5HQBEU": {
+                "name": "User1",
+                "active": true
+            },
+            "U0674228PUZ": {
+                "name": "User2",
+                "active": true
+            },
+            "U066TS32HPW": {
+                "name": "User3",
+                "active": false
+            }
+        }
+    },
+    
+    "prod":{
+        "bot_id":"U06A792TUFR",
+        "logging_path":"chatbot_messages.log",
+        "token":"",
+        "users": {
+            "U06A792TUFR": {
+                "name": "ChatGPT",
+                "active": true
+            },
+            "U43KDNJ5C": {
+                "name": "Aaron",
+                "active": true
+            },
+            "U046N0P9Z35": {
+                "name": "Adell",
+                "active": true
+            },
+            "UUQ19H84U": {
+                "name": "Armen",
+                "active": true
+            },
+            "UUSLT3DHU": {
+                "name": "Brian",
+                "active": true
+            },
+            "U04RR7MPSBV": {
+                "name": "Collin",
+                "active": true
+            },
+            "U061S9G7X2P": {
+                "name": "Conor",
+                "active": true
+            },
+            "U03TF4RM38C": {
+                "name": "Edison",
+                "active": true
+            },
+            "U05F5QB5XLN": {
+                "name": "Hanzhuo",
+                "active": true
+            },
+            "UU09CGS57": {
+                "name": "Jake",
+                "active": true
+            },
+            "U04A1TL72FL": {
+                "name": "James",
+                "active": true
+            },
+            "U02PJT2FPGD": {
+                "name": "Jared",
+                "active": true
+            },
+            "U064R3J8675": {
+                "name": "John",
+                "active": true
+            },
+            "U02P10YJUAF": {
+                "name": "Jordan",
+                "active": true
+            },
+            "U02C8MR4ED9": {
+                "name": "Kevan",
+                "active": true
+            },
+            "U01T7U9UPRP": {
+                "name": "Peter",
+                "active": true
+            },
+            "U05RPSWT5QU": {
+                "name": "Ronen",
+                "active": true
+            },
+            "U5NTSBW90": {
+                "name": "Tim",
+                "active": true
+            }
+        }
+    }
+}
