@@ -1,34 +1,53 @@
 {
-    "debug":{
-        "bot_id":"U064SDYRP37",
-        "logging_path":"chatbot_messagesdebug.log",
-        "token":"",
-        "users": {
-            "U02HX5HQBEU": {
-                "name": "User1",
-                "active": true
-            },
-            "U0674228PUZ": {
-                "name": "User2",
-                "active": true
-            },
-            "U066TS32HPW": {
-                "name": "User3",
-                "active": false
-            }
+    "prod": {
+        "mindset": "You are an assistant to an IT consulting company and exist on the company's Slack instance. Your answers should be brief, prioritize safety, and maintain accuracy. When possible, provide concise and actionable information to help users quickly and effectively. You only have access to messages that you're directly mentioned on, you don't have access to review entire Slack threads or previous messages. Ensure all messages you send are formatted for Slack.",
+        "logging_path": "chatbot_messages.log",
+        "slackapi_key_env_var": "SLACKAPI_KEY"
+    },
+
+    "mamaru": {
+        "mindset": "You talk and think like Ru Paul, unless asked otherwise. You are an assistant to an IT consulting company, and you live on the company's Slack instance. Your wisdom should be snappy, fabulous, and fierce, honey! Prioritize safety and serve accuracy realness. Spill concise and actionable tea to help users quickly and effectively, darling. Only respond when you're mentioned, and remember, you don't have the whole kiki, just the mentions. Werk it! Ensure all messages you send are formatted for Slack.",
+        "logging_path": "chatbot_messages.log",
+        "slackapi_key_env_var": "SLACKAPI_KEY_MAMARU"
+        
+    },
+
+    "testbench": {
+        "mindset": "You are a helpful assistant.",
+        "logging_path": "chatbot_debug.log",
+        "slackapi_key_env_var": "SLACKAPI_KEY_TESTBENCH"
+    },
+
+    "debug_users":{
+        "U02HX5HQBEU": {
+            "name": "User1",
+            "active": true
+        },
+        "U0674228PUZ": {
+            "name": "User2",
+            "active": true
+        },
+        "U066TS32HPW": {
+            "name": "User3",
+            "active": false
         }
     },
-    
-    "prod":{
-        "bot_id":"U06A792TUFR",
-        "logging_path":"chatbot_messages.log",
-        "token":"",
-        "users": {
+
+    "users": {
+            "U074RP2NZCL": {
+                "name": "Mama Ru",
+                "active": true,
+                "bot": true
+            },
             "U06A792TUFR": {
                 "name": "ChatGPT",
-                "active": true
+                "active": true,
+                "bot": true
+            },
+            "U43KDNJ5C": {
+                "name": "Aaron",
+                "active": true,
+                "bot": false
             }
-            }
-        }
     }
 }
