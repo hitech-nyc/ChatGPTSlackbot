@@ -26,7 +26,6 @@ This repository contains a server that integrates ChatGPT with Slack, allowing u
 
 1. Clone the repository:
    ```
-   sh
    git clone https://github.com/your-repo/chatgpt-slack-integration.git
    cd chatgpt-slack-integration
    pip install -r requirements.txt
