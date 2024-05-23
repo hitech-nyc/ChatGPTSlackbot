@@ -11,171 +11,181 @@ from slack_sdk.errors import SlackApiError
 
 # ---------------------------------------------
 
-DEBUG = False
-CONTEXT = {}
 app = FastAPI()
 
+
+class Settings(BaseModel):
+    environment: str
+    logging_path: str
+    users: dict
+    slackapi_key: str
+    openai_key: str
+    mindset: str
+
+
 def getsettings(filename):
-    """
-    Load settings from JSON
-    """
     with open(filename, 'r') as file:
         data = json.load(file)
     return data
-# Load settings from 'chatbot_settings.json'
-settings = getsettings("chatbot_settings.json")
 
-# Configure settings based on DEBUG mode
-if DEBUG:
-    # Debug mode settings
-    bot_id = settings["debug"]["bot_id"]
-    logging.basicConfig(filename=settings["debug"]["logging_path"], level=logging.INFO)
-    USERLIST = settings["debug"]["users"]
-    slackapi_key = os.environ.get("SLACKAPI_KEY_DEBUG")
-    openapi_key = os.environ.get("OPENAI_KEY")
-else:
-    # Production mode settings
-    bot_id = settings["prod"]["bot_id"]
-    logging.basicConfig(filename=settings["prod"]["logging_path"], level=logging.INFO)
-    USERLIST = settings["prod"]["users"]
-    slackapi_key = os.environ.get("SLACKAPI_KEY")
-    openapi_key = os.environ.get("OPENAI_KEY")
 
-# Initialize Slack and OpenAI clients
-client = AsyncWebClient(token=slackapi_key)
-openai_client = openai.AsyncOpenAI(api_key=openapi_key,timeout=60.0)
+def load_settings(environment: str):
+    settings_data = getsettings("chatbot2_settings.json")
+    env_settings = settings_data[environment]
+
+    if environment == "testbench":
+        users = settings_data["debug_users"]
+    else:
+        users = settings_data["users"]
+
+    return Settings(
+        environment=environment,
+        logging_path=env_settings["logging_path"],
+        users=users,
+        slackapi_key=os.environ.get(env_settings["slackapi_key_env_var"]),
+        openai_key=os.environ.get("OPENAI_KEY"),
+        mindset=env_settings["mindset"]
+    )
+
+
+CONTEXT = {}
+logging.basicConfig(filename="chatbot_messages.log", level=logging.INFO)
+
 
 # ---------------------------------------------
 
-def replacenames(string,userlist):
-    """
-    Replace Slack ID with user's name
-    """
 
-    for user,attributes in userlist.items():
-        string = string.replace(user,attributes["name"])
+def replacenames(message_text_, userlist):
+    """Replace Slack ID with Name"""
+    for user, name in userlist.items():
+        replacetarget = f"<@{user}>"
+        message_text_ = message_text_.replace(replacetarget, name["name"])
+    print(message_text_)
+    return message_text_
 
-    return string
 
-def allowed_user(user):
-    """
-    Determine if a user has access
-    """
-
+def allowed_user(user_list, user):
+    """Determine if a user has access"""
     try:
-        return USERLIST[user]
+        return user_list[user]["active"]
     except KeyError:
         return False
 
 
-def log_message(thread,user,msg):
-    """
-    Format for generated logs
-    """
-
+def log_message(thread, user, msg):
     if msg is not None:
-        log_entry = (f"[{datetime.now()}]:[{user}]:[{thread}]:[{msg}]")
-        print(f"[{datetime.now()}]:[{user}]:[{thread}]:[{msg[0:50]}]")
+        log_entry = f"[{datetime.now()}]:[{user}]:[{thread}]:[{msg}]"
+        print(log_entry)
         logging.info(log_entry)
 
 
-async def respond_message(event_):
+async def respond_message(event_, environment="prod"):
     """
     Respond to the user's message
     """
+    settings = load_settings(environment)
+    client = AsyncWebClient(token=settings.slackapi_key)
+    openai_client = openai.AsyncOpenAI(api_key=settings.openai_key, timeout=60.0)
+    
 
-    # Extract message and user details from the event
     if (event_.get('text')) is not None:
-        # Channel where the mention occurred
-        channel_id = event_.get('channel')
-         # Text of the message where the bot was mentioned
-        message_text = (event_.get('text')).replace(f"@<{bot_id}>","")
-        # Respond if in thread
-        thread_id = event_.get('thread_ts') or event_.get('ts')
-        # ID of the user who mentioned the bot
-        user_id = event_.get('user')
+        channel_id = event_.get('channel')  # Channel where the mention occurred
+        thread_id = event_.get('thread_ts') or event_.get('ts')  # Respond if in thread
+        user_id = event_.get('user')  # ID of the user
 
         # Ignore bot messages
-        if user_id == bot_id or message_text is None:
+        if settings.users[user_id]["bot"] or (event_.get('text')) is None:
             return None
         
         # Reject if the user isn't allowed access
-        if allowed_user(user_id) is False:
-            initial_response = await client.chat_postMessage(
+        if not allowed_user(settings.users, user_id):
+            await client.chat_postMessage(
                 channel=channel_id,
-                thread_ts=thread_id, 
-                text="""Sorry looks like you don't have access.
-                Ensure your KnowBe4 training has been completed and then reach out to Kevan to gain access.""")
-            return None  
+                thread_ts=thread_id,
+                text="""Sorry, looks like you don't have access. 
+                Ensure your KnowBe4 training has been completed and then reach out to Kevan to gain access."""
+            )
+            return None
+        
+        # Text of the message where the bot was mentioned
+        for bot_id in settings.users:
+            if settings.users[bot_id]["bot"]:
+                message_text = (event_.get('text')).replace(f"@<{bot_id}>", "")    
+        sender = settings.users[user_id]["name"]
+        message_text = f"{sender} asks: {message_text}"
 
         # Check if conversation already exists
-        try:
-            CONTEXT[thread_id].append({
-                "role":"user",
-                "content":replacenames(message_text,USERLIST)
-                })
-        except KeyError:
-            CONTEXT[thread_id] = [
-                {"role":"user",
-                    "content":replacenames(message_text,USERLIST)
-                    }]
+        if thread_id not in CONTEXT:
+            ini_mind = {"role": "system", "content": settings.mindset}
+            CONTEXT[thread_id] = [ini_mind]
+
+        CONTEXT[thread_id].append({
+            "role": "user",
+            "content": replacenames(message_text, settings.users)
+        })
+
         try:
             # Respond to the user immediately
             initial_response = await client.chat_postMessage(
                 channel=channel_id,
                 thread_ts=thread_id,
                 text="[Generating message... :loading-blue:]"
-                )
+            )
             initial_ts = initial_response['ts']
 
             # Generate response to the query
             stream = await openai_client.chat.completions.create(
-                model = "gpt-3.5-turbo",
-                messages = CONTEXT[thread_id],
-                stream = True,
+                model="gpt-4o-2024-05-13",
+                messages=CONTEXT[thread_id],
+                stream=True,
             )
-            
+
             message_ = ""
             message_size = 250
+
             async for part in stream:
                 message_piece = (part.choices[0].delta.content or "")
-                message_ += message_piece      
+                message_ += message_piece
+                
                 # Post small chunks - at a time
                 if len(message_) > message_size:
-                    #print(message_[message_size-150:message_size])
                     message_size += 250
-
                     await client.chat_update(
                         channel=event_['channel'],
-                        text=message_+"\n[Generating message... :loading-blue:]",
+                        text=message_ + "\n[Generating message... :loading-blue:]",
                         thread_ts=thread_id,
-                        ts=initial_ts)
-        
+                        ts=initial_ts
+                    )
+
         except openai.BadRequestError:
-            # Token length error
-            message_ = """This model's maximum context length is 4097 tokens. 
+            message_ = """This model's maximum context length is 4097 tokens per conversation thread. 
             However, your messages have exceeded this limit. 
-            You can work around this by creating a new thread with a summarized context of this conversation."""
+            You can work around this by creating a new Slack thread with a summarized context of this conversation."""
+        
+        except Exception as e:
+            message_ += f"An error occurred during text generation: {str(e)}"
+        
         finally:
             # Update message with full response
             await client.chat_update(
-            channel=event_['channel'],
-            text=message_+"\n---",
-            thread_ts=thread_id,
-            ts=initial_ts)       
+                channel=event_['channel'],
+                text=message_ + "\n---",
+                thread_ts=thread_id,
+                ts=initial_ts
+            )
 
-            log_message(thread_id,"assistant",message_)
-            CONTEXT[thread_id].append({"role":"assistant","content":message_})
+            log_message(thread_id, "assistant", message_)
+            CONTEXT[thread_id].append({
+                "role": "assistant",
+                "content": message_
+            })
+            
             return message_
- 
 
 # ---------------------------------------------
-# -------------------
+
 
 class EventRequest(BaseModel):
-    """
-    Define the request model
-    """
     token: str
     team_id: str = Field(None, alias='team_id')
     api_app_id: str = Field(None, alias='api_app_id')
@@ -185,14 +195,11 @@ class EventRequest(BaseModel):
     event_id: str = Field(None, alias='event_id')
     event_time: int = Field(None, alias='event_time')
 
-@app.post("/")
-async def slack_events(request: Request, event_request: EventRequest):
-    """
-    Receive Slack URL event
-    """
+
+async def receive_slack(request, event_request, environment):
     # For Slack URL verification
     if event_request.type == 'url_verification' and event_request.challenge:
-        return  {"challenge": event_request.challenge}
+        return {"challenge": event_request.challenge}
 
     # X-Slack-Retry-Num avoid duplicate events - Acknowledge without resending
     if request.headers.get('X-Slack-Retry-Num'):
@@ -204,15 +211,41 @@ async def slack_events(request: Request, event_request: EventRequest):
         # Handle the event when the bot is mentioned or messaged
         if event.get('type') == 'app_mention' or (event.get('type') == 'message' and event.get('channel_type') == 'im'):
             try:
-                log_message(event.get('thread_ts') or event.get('ts'),event.get('user'),event.get('text'))
-                await respond_message(event)
+                log_message(event.get('thread_ts') or event.get('ts'), event.get('user'), event.get('text'))
+                await respond_message(event, environment)
             except SlackApiError as e:
                 raise HTTPException(status_code=500, detail=f"Error posting message: {e}") from e
 
+# ---------------------------------------------
+
+@app.post("/")
+async def slack_events(request: Request, event_request: EventRequest):
+    """
+    ChatBot - Default
+    """
+    
+    await receive_slack(request, event_request, environment="prod")
+    return {"status": "OK"}
+
+@app.post("/mamaru")
+async def slack_events_ru(request: Request, event_request: EventRequest):
+    """
+    ChatBot - MamaRu
+    """
+
+    await receive_slack(request, event_request, environment="mamaru")
+    return {"status": "OK"}
+
+@app.post("/testbench")
+async def slack_events_debug(request: Request, event_request: EventRequest):
+    """
+    ChatBot - Testbench
+    """
+    
+    await receive_slack(request, event_request, environment="testbench")
     return {"status": "OK"}
 
 # ---------------------------------------------
 
-
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=9000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
